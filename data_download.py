@@ -127,39 +127,6 @@ def build_dataset(prices):
     return dataset
 
 
-def save_dataframes(
-    resource_prices,
-    resource_daily_returns,
-    resource_monthly_prices,
-    resource_monthly_returns,
-    benchmark_prices,
-    benchmark_daily_returns,
-    benchmark_monthly_prices,
-    benchmark_monthly_returns,
-    commodity_futures_prices,
-    commodity_futures_daily_returns,
-    commodity_futures_monthly_prices,
-    commodity_futures_monthly_returns,
-):
-    """
-    Save cleaned price and return DataFrames as CSV files.
-    """
-    resource_prices.to_csv("resource_daily_prices.csv")
-    resource_daily_returns.to_csv("resource_daily_returns.csv")
-    resource_monthly_prices.to_csv("resource_monthly_prices.csv")
-    resource_monthly_returns.to_csv("resource_monthly_returns.csv")
-
-    benchmark_prices.to_csv("benchmark_daily_prices.csv")
-    benchmark_daily_returns.to_csv("benchmark_daily_returns.csv")
-    benchmark_monthly_prices.to_csv("benchmark_monthly_prices.csv")
-    benchmark_monthly_returns.to_csv("benchmark_monthly_returns.csv")
-
-    commodity_futures_prices.to_csv("commodity_futures_daily_prices.csv")
-    commodity_futures_daily_returns.to_csv("commodity_futures_daily_returns.csv")
-    commodity_futures_monthly_prices.to_csv("commodity_futures_monthly_prices.csv")
-    commodity_futures_monthly_returns.to_csv("commodity_futures_monthly_returns.csv")
-
-
 def main():
     prices = download_price_data(ALL_TICKERS)
 
@@ -194,21 +161,6 @@ def main():
 
     print("\nCommodity futures monthly returns:")
     print(commodity_futures_monthly_returns.head())
-
-    save_dataframes(
-        resource_prices,
-        resource_daily_returns,
-        resource_monthly_prices,
-        resource_monthly_returns,
-        benchmark_prices,
-        benchmark_daily_returns,
-        benchmark_monthly_prices,
-        benchmark_monthly_returns,
-        commodity_futures_prices,
-        commodity_futures_daily_returns,
-        commodity_futures_monthly_prices,
-        commodity_futures_monthly_returns,
-    )
 
 
 if __name__ == "__main__":

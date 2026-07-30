@@ -10,6 +10,7 @@ The runner keeps the project focused:
 """
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from data_download import (
@@ -20,13 +21,35 @@ from data_download import (
 )
 from momentum_strat import build_momentum_strategy
 
+#strategy on monthly returns --> 12 per year
 PERIODS_PER_YEAR = 12
+
+
+# total absolute portfolio exposure:
+# - long-only: 100% long
+# - market-neutral long/short: 50% long and 50% short
 GROSS_EXPOSURE = 1.0
 
 SHOW_PLOTS = True
 
+# train/test validation:
+# first 70% of usable history is treated as in-sample data for ranking
+# strategies; the final 30% is held out for evaluation
 TRAIN_SAMPLE_FRACTION = 0.70
+
+
+# A strategy must have at least 36 valid monthly returns before it is eligible
+# to be ranked to avoid favoring a strategy based on a very short history
 MIN_RANKING_MONTHS = 36
+
+
+# Walk-forward validation:
+# At each decision date, evaluate strategies using only the previous 120 months
+# (10 years), select the best one, and then hold that selected strategy for the next
+# 12 months (1 year). Then move forward 12 months and repeat.
+#
+# Creates a rolling, historically realistic sequence of decisions in which
+# no test-period return is used to select the strategy for that same test period.
 WALK_FORWARD_TRAIN_MONTHS = 120
 WALK_FORWARD_TEST_MONTHS = 12
 
@@ -53,6 +76,8 @@ MOVING_AVERAGE_WINDOWS = [
     {"label": "6-18", "fast_months": 6, "slow_months": 18, "skip_months": 1},
 ]
 
+# economic periods used to examine whether performance is concentrated
+# in one environment or remains reasonably consistent across regimes.
 REGIMES = [
     {"name": "Pre-GFC", "start": "2000-01-31", "end": "2007-10-31"},
     {"name": "GFC", "start": "2007-11-30", "end": "2009-02-28"},
@@ -149,11 +174,45 @@ def build_equity_curves(returns_df):
     return returns_df.apply(returns_to_equity_curve)
 
 
+def calculate_sharpe_ratio(
+    returns,
+    periods_per_year=PERIODS_PER_YEAR,
+):
+    """
+    annualized sharpe, zero risk-free rate
+
+    uses mean monthly return / sample monthly volatility * sqrt(periods per year)
+    """
+    if periods_per_year <= 0:
+        return None
+
+    returns = pd.Series(returns).replace([np.inf, -np.inf], np.nan).dropna()
+
+    if len(returns) < 2:
+        return None
+
+    mean_return = returns.mean()
+    return_volatility = returns.std(ddof=1)
+
+    if (
+        not np.isfinite(mean_return)
+        or not np.isfinite(return_volatility)
+        or np.isclose(return_volatility, 0.0)
+    ):
+        return None
+
+    sharpe_ratio = mean_return / return_volatility * np.sqrt(periods_per_year)
+
+    return sharpe_ratio if np.isfinite(sharpe_ratio) else None
+
+
 def calculate_performance_metrics(returns):
     """
     Calculate the core metrics needed to rank and compare strategies.
+
+    annualized_return is compounded annual growth. Sharpe uses zero rf
     """
-    returns = returns.dropna()
+    returns = pd.Series(returns).replace([np.inf, -np.inf], np.nan).dropna()
 
     if returns.empty:
         return {
@@ -176,11 +235,15 @@ def calculate_performance_metrics(returns):
         if final_value <= 0
         else final_value ** (PERIODS_PER_YEAR / len(returns)) - 1
     )
-    annualized_volatility = returns.std() * (PERIODS_PER_YEAR ** 0.5)
-    sharpe_ratio = (
-        None
-        if annualized_return is None or annualized_volatility == 0
-        else annualized_return / annualized_volatility
+    periodic_volatility = returns.std(ddof=1)
+    annualized_volatility = (
+        periodic_volatility * np.sqrt(PERIODS_PER_YEAR)
+        if np.isfinite(periodic_volatility)
+        else None
+    )
+    sharpe_ratio = calculate_sharpe_ratio(
+        returns=returns,
+        periods_per_year=PERIODS_PER_YEAR,
     )
     drawdowns = equity_curve / equity_curve.cummax() - 1
 
@@ -231,7 +294,11 @@ def calculate_relative_metrics(strategy_returns, benchmark_returns, benchmark_na
     }
 
 
-def calculate_results_table(strategy_returns, strategy_metadata, benchmark_returns):
+def calculate_results_table(
+    strategy_returns,
+    strategy_metadata,
+    benchmark_returns,
+):
     rows = []
 
     for strategy_name, returns in strategy_returns.items():
@@ -517,7 +584,11 @@ def calculate_walk_forward_validation(
     return combined_returns, pd.DataFrame(decisions)
 
 
-def build_regime_summary(strategy_returns_frame, benchmark_returns, strategy_names):
+def build_regime_summary(
+    strategy_returns_frame,
+    benchmark_returns,
+    strategy_names,
+):
     benchmark_names = [name for name in ["SPY", "XLE", "GLD"] if name in benchmark_returns]
     combined_returns = strategy_returns_frame.reindex(columns=strategy_names).join(
         benchmark_returns[benchmark_names],
