@@ -20,6 +20,8 @@ from data_download import (
     report_download_summary,
 )
 from momentum_strat import build_momentum_strategy
+from strats.momentum_signals import calculate_momentum_scores
+from strats.threshold_momentum import build_threshold_momentum_strategy
 
 #strategy on monthly returns --> 12 per year
 PERIODS_PER_YEAR = 12
@@ -70,23 +72,17 @@ MOMENTUM_WINDOWS = [
     {"label": "18-1", "lookback_months": 18, "skip_months": 1},
 ]
 
+THRESHOLD_MOMENTUM_LEVELS = [
+    {"label": "gt0pct", "threshold": 0.00},
+    {"label": "gt20pct", "threshold": 0.20},
+    {"label": "gt50pct", "threshold": 0.50},
+]
+
 MOVING_AVERAGE_WINDOWS = [
     {"label": "3-12", "fast_months": 3, "slow_months": 12, "skip_months": 1},
     {"label": "6-12", "fast_months": 6, "slow_months": 12, "skip_months": 1},
     {"label": "6-18", "fast_months": 6, "slow_months": 18, "skip_months": 1},
 ]
-
-# economic periods used to examine whether performance is concentrated
-# in one environment or remains reasonably consistent across regimes.
-REGIMES = [
-    {"name": "Pre-GFC", "start": "2000-01-31", "end": "2007-10-31"},
-    {"name": "GFC", "start": "2007-11-30", "end": "2009-02-28"},
-    {"name": "Post-GFC expansion", "start": "2009-03-31", "end": "2019-12-31"},
-    {"name": "COVID and recovery", "start": "2020-01-31", "end": "2021-12-31"},
-    {"name": "Inflation and rate shock", "start": "2022-01-31", "end": "2023-12-31"},
-    {"name": "Recent", "start": "2024-01-31", "end": None},
-]
-
 
 def build_signal_settings():
     """
@@ -166,12 +162,33 @@ def calculate_equal_weight_universe_returns(monthly_returns):
     return monthly_returns.mean(axis=1, skipna=True)
 
 
-def returns_to_equity_curve(returns):
-    return (1 + returns.dropna()).cumprod()
+def get_curve_start_index(first_return_index):
+    if isinstance(first_return_index, pd.Timestamp):
+        return first_return_index - pd.Timedelta(nanoseconds=1)
+
+    return first_return_index
 
 
-def build_equity_curves(returns_df):
-    return returns_df.apply(returns_to_equity_curve)
+def returns_to_equity_curve(returns, include_start=False):
+    returns = returns.dropna()
+    equity_curve = (1 + returns).cumprod()
+
+    if include_start and not returns.empty:
+        start_index = get_curve_start_index(returns.index[0])
+        start_value = pd.Series([1.0], index=[start_index])
+
+        return pd.concat([start_value, equity_curve])
+
+    return equity_curve
+
+
+def build_equity_curves(returns_df, include_start=False):
+    return returns_df.apply(
+        lambda returns: returns_to_equity_curve(
+            returns,
+            include_start=include_start,
+        )
+    )
 
 
 def calculate_sharpe_ratio(
@@ -445,9 +462,70 @@ def run_strategy_grid(resource_monthly_prices, resource_monthly_returns):
                 }
             )
 
+    threshold_returns, threshold_metadata = run_threshold_strategy_grid(
+        resource_monthly_prices=resource_monthly_prices,
+        resource_monthly_returns=resource_monthly_returns,
+    )
+    strategy_returns.update(threshold_returns)
+    strategy_metadata.extend(threshold_metadata)
+
     metadata = pd.DataFrame(strategy_metadata).set_index("strategy_name")
 
     return strategy_returns, metadata, latest_signal_scores
+
+
+def make_threshold_strategy_name(signal_name, threshold_label):
+    return f"{signal_name} | threshold_{threshold_label} | long_only | equal"
+
+
+def run_threshold_strategy_grid(resource_monthly_prices, resource_monthly_returns):
+    """
+    run raw momentum thresholds separately from the top-N strategy grid
+    """
+    strategy_returns = {}
+    strategy_metadata = []
+
+    for window in MOMENTUM_WINDOWS:
+        signal_name = f"raw_{window['label']}"
+        raw_momentum_scores = calculate_momentum_scores(
+            monthly_prices=resource_monthly_prices,
+            lookback_months=window["lookback_months"],
+            skip_months=window["skip_months"],
+        )
+
+        for threshold_setting in THRESHOLD_MOMENTUM_LEVELS:
+            strategy_name = make_threshold_strategy_name(
+                signal_name=signal_name,
+                threshold_label=threshold_setting["label"],
+            )
+            returns, _, _ = build_threshold_momentum_strategy(
+                raw_momentum_scores=raw_momentum_scores,
+                monthly_returns=resource_monthly_returns,
+                threshold=threshold_setting["threshold"],
+                gross_exposure=GROSS_EXPOSURE,
+            )
+
+            strategy_returns[strategy_name] = returns
+            strategy_metadata.append(
+                {
+                    "strategy_name": strategy_name,
+                    "name": signal_name,
+                    "signal_family": "raw_momentum",
+                    "signal_type": "momentum",
+                    "lookback_months": window["lookback_months"],
+                    "skip_months": window["skip_months"],
+                    "selection_method": "threshold",
+                    "threshold_label": threshold_setting["label"],
+                    "threshold": threshold_setting["threshold"],
+                    "strategy_type": "long_only",
+                    "weighting": "equal",
+                    "top_n": None,
+                    "max_weight": None,
+                    "gross_exposure": GROSS_EXPOSURE,
+                }
+            )
+
+    return strategy_returns, strategy_metadata
 
 
 def rank_results(results, by="sharpe_ratio", min_periods=MIN_RANKING_MONTHS):
@@ -584,51 +662,6 @@ def calculate_walk_forward_validation(
     return combined_returns, pd.DataFrame(decisions)
 
 
-def build_regime_summary(
-    strategy_returns_frame,
-    benchmark_returns,
-    strategy_names,
-):
-    benchmark_names = [name for name in ["SPY", "XLE", "GLD"] if name in benchmark_returns]
-    combined_returns = strategy_returns_frame.reindex(columns=strategy_names).join(
-        benchmark_returns[benchmark_names],
-        how="outer",
-    )
-    rows = []
-
-    for regime in REGIMES:
-        start = pd.Timestamp(regime["start"])
-        end = None if regime["end"] is None else pd.Timestamp(regime["end"])
-        regime_returns = combined_returns.loc[start:end]
-
-        if regime_returns.dropna(how="all").empty:
-            continue
-
-        for asset_name in regime_returns.columns:
-            metrics = calculate_performance_metrics(regime_returns[asset_name])
-
-            if metrics["periods"] == 0:
-                continue
-
-            rows.append(
-                {
-                    "regime": regime["name"],
-                    "asset": asset_name,
-                    "periods": metrics["periods"],
-                    "annualized_return": metrics["annualized_return"],
-                    "annualized_volatility": metrics["annualized_volatility"],
-                    "sharpe_ratio": metrics["sharpe_ratio"],
-                    "max_drawdown": metrics["max_drawdown"],
-                    "final_value": metrics["final_value"],
-                }
-            )
-
-    if not rows:
-        return pd.DataFrame()
-
-    return pd.DataFrame(rows).set_index(["regime", "asset"])
-
-
 def plot_equity_curves(equity_curves, columns, title="Top Strategies vs Benchmarks"):
     available_columns = [column for column in columns if column in equity_curves]
 
@@ -650,6 +683,63 @@ def plot_equity_curves(equity_curves, columns, title="Top Strategies vs Benchmar
 
     if not SHOW_PLOTS:
         plt.close()
+
+
+def build_walk_forward_comparison_returns(
+    walk_forward_returns,
+    resource_universe_returns,
+    benchmark_returns,
+):
+    """
+    fair comparison uses the same dates as the walk-forward returns
+    """
+    walk_forward_returns = walk_forward_returns.dropna()
+
+    if walk_forward_returns.empty:
+        return pd.DataFrame()
+
+    comparison_returns = pd.DataFrame(
+        {"Walk-forward selected strategy": walk_forward_returns}
+    )
+    comparison_returns["Resource universe equal-weight"] = (
+        resource_universe_returns.reindex(walk_forward_returns.index)
+    )
+
+    for benchmark in ["SPY", "XLE", "GLD"]:
+        if benchmark in benchmark_returns:
+            comparison_returns[benchmark] = benchmark_returns[benchmark].reindex(
+                walk_forward_returns.index
+            )
+
+    return comparison_returns.dropna(axis=1, how="any")
+
+
+def plot_walk_forward_comparison(
+    walk_forward_returns,
+    resource_universe_returns,
+    benchmark_returns,
+):
+    """
+    benchmarks are rebased with no earlier head start
+    """
+    comparison_returns = build_walk_forward_comparison_returns(
+        walk_forward_returns=walk_forward_returns,
+        resource_universe_returns=resource_universe_returns,
+        benchmark_returns=benchmark_returns,
+    )
+
+    if comparison_returns.empty:
+        return
+
+    equity_curves = build_equity_curves(
+        comparison_returns,
+        include_start=True,
+    )
+    plot_equity_curves(
+        equity_curves=equity_curves,
+        columns=comparison_returns.columns,
+        title="Walk-Forward Strategy vs Benchmarks",
+    )
 
 
 def plot_sharpe_bars(results, top_n=15, title="Top In-Sample Strategies by Sharpe"):
@@ -675,7 +765,6 @@ def plot_sharpe_bars(results, top_n=15, title="Top In-Sample Strategies by Sharp
 
 def print_summary_table(title, table):
     columns = [
-        "periods",
         "signal_family",
         "strategy_type",
         "weighting",
@@ -701,7 +790,16 @@ def print_table(title, table):
         print("No rows available.")
         return
 
-    print(format_results_table(table).to_string())
+    visible_table = table.drop(
+        columns=[
+            column
+            for column in table.columns
+            if column == "periods" or column.endswith("_periods")
+        ],
+        errors="ignore",
+    )
+
+    print(format_results_table(visible_table).to_string())
 
 
 def main():
@@ -765,14 +863,11 @@ def main():
         strategy_returns_frame,
     )
     walk_forward_metrics = calculate_performance_metrics(walk_forward_returns)
-
-    comparison_returns = strategy_returns_frame.copy()
-    comparison_returns["Resource universe equal-weight"] = (
-        calculate_equal_weight_universe_returns(resource_monthly_returns)
+    resource_universe_returns = calculate_equal_weight_universe_returns(
+        resource_monthly_returns
     )
 
-    if not walk_forward_returns.empty:
-        comparison_returns["Walk-forward selected strategy"] = walk_forward_returns
+    comparison_returns = strategy_returns_frame.copy()
 
     available_benchmarks = [
         benchmark for benchmark in BENCHMARKS if benchmark in benchmark_monthly_returns
@@ -785,12 +880,19 @@ def main():
     equity_curves = build_equity_curves(comparison_returns)
     chart_columns = list(
         dict.fromkeys(
-            ["Walk-forward selected strategy"]
-            + top_in_sample.head(5).index.tolist()
+            top_in_sample.head(5).index.tolist()
             + ["SPY", "XLE", "GLD"]
         )
     )
     plot_equity_curves(equity_curves, chart_columns)
+
+    if not walk_forward_returns.empty:
+        plot_walk_forward_comparison(
+            walk_forward_returns=walk_forward_returns,
+            resource_universe_returns=resource_universe_returns,
+            benchmark_returns=benchmark_monthly_returns,
+        )
+
     plot_sharpe_bars(in_sample_results)
 
     if SHOW_PLOTS:
@@ -814,24 +916,6 @@ def main():
             "Recent walk-forward selections",
             walk_forward_decisions.tail(10).set_index("test_start"),
         )
-
-    regime_strategy_names = list(
-        dict.fromkeys(
-            top_in_sample.head(3).index.tolist()
-            + (["Walk-forward selected strategy"] if not walk_forward_returns.empty else [])
-        )
-    )
-    regime_frame = strategy_returns_frame.copy()
-
-    if not walk_forward_returns.empty:
-        regime_frame["Walk-forward selected strategy"] = walk_forward_returns
-
-    regime_summary = build_regime_summary(
-        strategy_returns_frame=regime_frame,
-        benchmark_returns=benchmark_monthly_returns,
-        strategy_names=regime_strategy_names,
-    )
-    print_table("Regime summary", regime_summary)
 
 
 if __name__ == "__main__":
