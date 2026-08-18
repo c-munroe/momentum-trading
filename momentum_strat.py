@@ -32,6 +32,23 @@ from strats.long_short_abs import (
 from strats.portfolio import calculate_portfolio_returns
 
 
+def apply_eligibility_mask(signal_scores, eligibility_mask):
+    """
+    Remove ineligible names from current-month selection.
+
+    Signals are still calculated from the full price history. Eligibility only
+    controls which names may enter the portfolio at each formation date.
+    """
+    if eligibility_mask is None:
+        return signal_scores
+
+    aligned_mask = eligibility_mask.reindex(
+        index=signal_scores.index,
+        columns=signal_scores.columns,
+        fill_value=False,
+    )
+
+    return signal_scores.where(aligned_mask)
 
 
 def build_momentum_strategy(
@@ -48,6 +65,7 @@ def build_momentum_strategy(
     max_weight=None,
     strategy_type="long_only",
     gross_exposure=1.0,
+    eligibility_mask=None,
 ):
     """
     Build a monthly momentum strategy.
@@ -91,6 +109,9 @@ def build_momentum_strategy(
     gross_exposure : float
         Total absolute exposure of the portfolio.
         For example, gross_exposure=1.0 means 100% total gross exposure.
+    eligibility_mask : pd.DataFrame, optional
+        Boolean matrix aligned to monthly formation dates and tickers. True
+        means a security may be selected that month.
 
     Returns
     -------
@@ -136,6 +157,11 @@ def build_momentum_strategy(
             "signal_type must be 'momentum', 'volatility_adjusted', "
             "'sma_crossover', 'ema_crossover', or 'wma_crossover'."
         )
+
+    momentum_scores = apply_eligibility_mask(
+        signal_scores=momentum_scores,
+        eligibility_mask=eligibility_mask,
+    )
 
     if strategy_type == "long_only":
         selection = select_top_momentum_assets(
