@@ -58,6 +58,7 @@ SHOW_PLOTS = True
 # static preserves the original hand-curated universe behavior
 # dynamic adds annual liquidity eligibility from universe.dynamic
 UNIVERSE_MODE = "static"
+#UNIVERSE_MODE = "dynamic"
 
 # train/test validation:
 # first 70% of usable history is treated as in-sample data for ranking
