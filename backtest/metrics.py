@@ -9,23 +9,23 @@ import pandas as pd
 PERIODS_PER_YEAR = 12
 
 
-def calculate_equal_weight_universe_returns(monthly_returns, eligibility_mask=None):
+def calculate_equal_weight_universe_returns(monthly_returns, eligibility_table=None):
     """
-    Calculate an equal-weight resource-universe return.
+    Calculate an equal-weight resource-universe return
 
-    When eligibility_mask is supplied, only currently eligible names are included
+    When eligibility_table is supplied, only currently eligible names are included
     in that month's resource-universe benchmark.
     """
-    if eligibility_mask is None:
+    if eligibility_table is None:
         return monthly_returns.mean(axis=1, skipna=True)
 
-    aligned_mask = eligibility_mask.reindex(
+    aligned_table = eligibility_table.reindex(
         index=monthly_returns.index,
         columns=monthly_returns.columns,
         fill_value=False,
     )
 
-    return monthly_returns.where(aligned_mask).mean(axis=1, skipna=True)
+    return monthly_returns.where(aligned_table).mean(axis=1, skipna=True)
 
 
 def get_curve_start_index(first_return_index):
@@ -91,7 +91,7 @@ def calculate_sharpe_ratio(
 
 def calculate_performance_metrics(returns):
     """
-    Calculate the core metrics needed to rank and compare strategies.
+    Calculate the core metrics needed to rank and compare strategies
 
     annualized_return is compounded annual growth. Sharpe uses zero rf
     """
@@ -145,7 +145,7 @@ def calculate_performance_metrics(returns):
 
 def calculate_relative_metrics(strategy_returns, benchmark_returns, benchmark_name):
     """
-    Calculate beta, alpha, correlation, and information ratio vs one benchmark.
+    Calculate beta, alpha, correlation, and information ratio vs one benchmark
     """
     aligned = pd.concat([strategy_returns, benchmark_returns], axis=1).dropna()
     aligned.columns = ["strategy", "benchmark"]

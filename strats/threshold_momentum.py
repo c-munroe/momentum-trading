@@ -9,20 +9,20 @@ cutoff, and hold cash when no stocks qualify.
 from strats.portfolio import calculate_portfolio_returns
 
 
-def apply_eligibility_mask(raw_momentum_scores, eligibility_mask):
+def apply_eligibility_table(raw_momentum_scores, eligibility_table):
     """
     Remove ineligible names before the threshold is applied.
     """
-    if eligibility_mask is None:
+    if eligibility_table is None:
         return raw_momentum_scores
 
-    aligned_mask = eligibility_mask.reindex(
+    aligned_table = eligibility_table.reindex(
         index=raw_momentum_scores.index,
         columns=raw_momentum_scores.columns,
         fill_value=False,
     )
 
-    return raw_momentum_scores.where(aligned_mask)
+    return raw_momentum_scores.where(aligned_table)
 
 
 def select_threshold_momentum_assets(raw_momentum_scores, threshold):
@@ -54,7 +54,7 @@ def build_threshold_momentum_strategy(
     monthly_returns,
     threshold,
     gross_exposure=1.0,
-    eligibility_mask=None,
+    eligibility_table=None,
 ):
     """
     Build long-only threshold momentum returns.
@@ -62,9 +62,9 @@ def build_threshold_momentum_strategy(
     raw_momentum_scores should already include the project's lookback and
     skip-month timing. Months with no positions are cash months with 0% return.
     """
-    raw_momentum_scores = apply_eligibility_mask(
+    raw_momentum_scores = apply_eligibility_table(
         raw_momentum_scores=raw_momentum_scores,
-        eligibility_mask=eligibility_mask,
+        eligibility_table=eligibility_table,
     )
     selection = select_threshold_momentum_assets(
         raw_momentum_scores=raw_momentum_scores,

@@ -2,11 +2,13 @@
 Console and plot reporting for the momentum backtest.
 """
 
+from textwrap import fill
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from backtest_metrics import build_equity_curves
-from backtest_validation import rank_results
+from backtest.metrics import build_equity_curves
+from backtest.validation import rank_results
 
 
 def format_results_table(results):
@@ -155,6 +157,40 @@ def plot_sharpe_bars(
 
     if not show_plots:
         plt.close()
+
+
+def plot_annual_universe_table(annual_universes, show_plots=True):
+    """
+    Show the selected dynamic universe for each year in a separate figure
+    """
+    if not annual_universes:
+        return
+
+    rows = []
+
+    for year, tickers in annual_universes.items():
+        ticker_text = ", ".join(tickers)
+        rows.append([year, len(tickers), fill(ticker_text, width=105)])
+
+    height = max(6, min(18, 0.45 * len(rows) + 2))
+    fig, ax = plt.subplots(figsize=(18, height))
+    ax.axis("off")
+    ax.set_title("Annual Dynamic Universe Membership", pad=14)
+
+    table = ax.table(
+        cellText=rows,
+        colLabels=["Year", "Count", "Tickers"],
+        colWidths=[0.08, 0.08, 0.84],
+        cellLoc="left",
+        loc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(8)
+    table.scale(1, 1.5)
+    plt.tight_layout()
+
+    if not show_plots:
+        plt.close(fig)
 
 
 def print_summary_table(title, table):

@@ -1,9 +1,8 @@
 """
 Ticker universes used by the backtest.
 
-The resource equity universe is hand-curated, so results should be interpreted
-with that limitation in mind. A production-quality research version should
-replace this static list with a point-in-time investable universe.
+The resource equity universe is hand-curated, so 
+inteprate results with that limitation in mind. 
 """
 
 # Natural resources / commodities-linked equity universe

@@ -4,7 +4,7 @@ Train/test and walk-forward validation helpers.
 
 import pandas as pd
 
-from backtest_metrics import (
+from backtest.metrics import (
     calculate_performance_metrics,
     calculate_results_from_frame,
     calculate_results_table,
@@ -59,7 +59,7 @@ def calculate_period_results(
 def build_train_test_validation_summary(
     in_sample_results,
     out_sample_results,
-    top_n=15,
+    top_n=10,
     min_ranking_months=36,
 ):
     top_in_sample = rank_results(

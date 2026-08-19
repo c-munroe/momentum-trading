@@ -10,46 +10,36 @@ Run a compact natural-resource momentum research grid.
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from backtest_metrics import (
+from backtest.metrics import (
     build_equity_curves,
     calculate_equal_weight_universe_returns,
     calculate_performance_metrics,
     calculate_results_table,
 )
-from backtest_reporting import (
+from backtest.reporting import (
     plot_equity_curves,
+    plot_annual_universe_table,
     plot_sharpe_bars,
     plot_walk_forward_comparison,
     print_summary_table,
     print_table,
 )
-from backtest_validation import (
+from backtest.validation import (
     build_train_test_validation_summary,
     calculate_period_results,
     calculate_walk_forward_validation,
     rank_results,
     split_train_test_index,
 )
+from backtest.universe_setup import build_dynamic_candidate_pool, prepare_universe_mode
 from data_download import (
     ALL_TICKERS,
-    END_DATE,
-    START_DATE,
+    BENCHMARK_TICKERS,
+    COMMODITY_FUTURES_TICKERS,
     build_dataset,
     download_price_data,
     report_download_summary,
 )
-from dynamic_universe import (
-    DEFAULT_START_YEAR,
-    LIQUIDITY_LOOKBACK_DAYS,
-    MAX_UNIVERSE_SIZE,
-    MIN_AVG_DAILY_DOLLAR_VOLUME,
-    MIN_LIQUIDITY_OBSERVATIONS,
-    build_annual_universes,
-    download_price_volume_data,
-    get_universe_for_date,
-    print_annual_diagnostics,
-)
-from equities_list import NATURAL_RESOURCE_TICKERS
 from momentum_strat import build_momentum_strategy
 from strats.momentum_signals import calculate_momentum_scores
 from strats.threshold_momentum import build_threshold_momentum_strategy
@@ -66,7 +56,7 @@ GROSS_EXPOSURE = 1.0
 SHOW_PLOTS = True
 
 # static preserves the original hand-curated universe behavior
-# dynamic adds annual liquidity eligibility from dynamic_universe.py
+# dynamic adds annual liquidity eligibility from universe.dynamic
 UNIVERSE_MODE = "static"
 
 # train/test validation:
@@ -193,11 +183,6 @@ def keep_complete_months(monthly_frame, last_complete_month_end):
     return monthly_frame.loc[monthly_frame.index <= last_complete_month_end]
 
 
-def validate_universe_mode(universe_mode):
-    if universe_mode not in {"static", "dynamic"}:
-        raise ValueError("UNIVERSE_MODE must be either 'static' or 'dynamic'.")
-
-
 def make_strategy_name(signal_name, strategy_type, weighting, top_n, max_weight=None):
     if weighting == "equal":
         return f"{signal_name} | {strategy_type} | equal | top{top_n}"
@@ -229,7 +214,7 @@ def iter_portfolio_variants():
 def run_strategy_grid(
     resource_monthly_prices,
     resource_monthly_returns,
-    eligibility_mask=None,
+    eligibility_table=None,
 ):
     strategy_returns = {}
     strategy_metadata = []
@@ -263,10 +248,9 @@ def run_strategy_grid(
                     max_weight=variant["max_weight"],
                     strategy_type=variant["strategy_type"],
                     gross_exposure=GROSS_EXPOSURE,
-                    eligibility_mask=eligibility_mask,
+                    eligibility_table=eligibility_table,
                 )
-            except Exception as error:
-                print(f"Skipped {strategy_name}: {error}")
+            except Exception:
                 continue
 
             strategy_returns[strategy_name] = returns
@@ -282,7 +266,7 @@ def run_strategy_grid(
     threshold_returns, threshold_metadata = run_threshold_strategy_grid(
         resource_monthly_prices=resource_monthly_prices,
         resource_monthly_returns=resource_monthly_returns,
-        eligibility_mask=eligibility_mask,
+        eligibility_table=eligibility_table,
     )
     strategy_returns.update(threshold_returns)
     strategy_metadata.extend(threshold_metadata)
@@ -299,7 +283,7 @@ def make_threshold_strategy_name(signal_name, threshold_label):
 def run_threshold_strategy_grid(
     resource_monthly_prices,
     resource_monthly_returns,
-    eligibility_mask=None,
+    eligibility_table=None,
 ):
     """
     run raw momentum thresholds separately from the top-N strategy grid
@@ -325,7 +309,7 @@ def run_threshold_strategy_grid(
                 monthly_returns=resource_monthly_returns,
                 threshold=threshold_setting["threshold"],
                 gross_exposure=GROSS_EXPOSURE,
-                eligibility_mask=eligibility_mask,
+                eligibility_table=eligibility_table,
             )
 
             strategy_returns[strategy_name] = returns
@@ -351,102 +335,28 @@ def run_threshold_strategy_grid(
     return strategy_returns, strategy_metadata
 
 
-def build_monthly_eligibility_mask(monthly_index, tickers, annual_universes):
-    """
-    Convert annual universes into a month-end boolean eligibility matrix.
-    """
-    mask = pd.DataFrame(False, index=monthly_index, columns=tickers)
-
-    for date in monthly_index:
-        eligible_tickers = get_universe_for_date(
-            date=date,
-            annual_universes=annual_universes,
-        )
-        available_tickers = [ticker for ticker in eligible_tickers if ticker in mask]
-        mask.loc[date, available_tickers] = True
-
-    return mask
-
-
-def print_static_universe_diagnostics(resource_monthly_returns):
-    print("\nUniverse mode: static")
-    print(f"Resource tickers: {resource_monthly_returns.shape[1]}")
-
-
-def print_dynamic_universe_setup():
-    print("\nUniverse mode: dynamic")
-    print("Candidate pool: NATURAL_RESOURCE_TICKERS")
-    print(f"Candidate names: {len(NATURAL_RESOURCE_TICKERS)}")
-    print(f"First reconstitution year: {DEFAULT_START_YEAR}")
-    print(f"Liquidity threshold: ${MIN_AVG_DAILY_DOLLAR_VOLUME:,.0f} ADDV")
-    print(f"Liquidity lookback: {LIQUIDITY_LOOKBACK_DAYS} trading days")
-    print(f"Minimum observations: {MIN_LIQUIDITY_OBSERVATIONS}")
-    print(f"Maximum annual universe: {MAX_UNIVERSE_SIZE}")
-    print("\nMarket-cap filter: NOT ACTIVE")
-    print("Resource classification filter: NOT ACTIVE")
-    print("Candidate survivorship bias: STILL PRESENT")
-
-
-def build_dynamic_universe(
-    monthly_index,
-    resource_tickers,
-):
-    """
-    Build annual liquidity-filtered universes for dynamic development mode.
-
-    This still starts from NATURAL_RESOURCE_TICKERS. It is a dynamic liquidity
-    filter, not a survivorship-bias-free historical security master.
-    """
-    print_dynamic_universe_setup()
-    unadjusted_prices, volumes = download_price_volume_data(
-        tickers=NATURAL_RESOURCE_TICKERS,
-        start_date=START_DATE,
-        end_date=END_DATE,
-    )
-    result = build_annual_universes(
-        candidate_tickers=NATURAL_RESOURCE_TICKERS,
-        prices=unadjusted_prices,
-        volumes=volumes,
-        market_cap_data=None,
-        subsector_data=None,
-        require_resource_classification=False,
-        start_year=DEFAULT_START_YEAR,
-        end_year=monthly_index.max().year,
-        allow_missing_market_cap=True,
-    )
-    eligibility_mask = build_monthly_eligibility_mask(
-        monthly_index=monthly_index,
-        tickers=resource_tickers,
-        annual_universes=result.annual_universes,
-    )
-
-    print_annual_diagnostics(result.diagnostics)
-
-    return result, eligibility_mask
-
-
-def prepare_universe_mode(
-    universe_mode,
-    resource_monthly_prices,
-    resource_monthly_returns,
-):
-    validate_universe_mode(universe_mode)
-
-    if universe_mode == "static":
-        print_static_universe_diagnostics(resource_monthly_returns)
-        return None, None
-
-    return build_dynamic_universe(
-        monthly_index=resource_monthly_returns.index,
-        resource_tickers=resource_monthly_returns.columns,
-    )
-
-
 def main():
-    prices = download_price_data(ALL_TICKERS)
-    report_download_summary(prices)
+    dynamic_candidate_tickers = None
+    download_tickers = ALL_TICKERS
 
-    dataset = build_dataset(prices)
+    if UNIVERSE_MODE == "dynamic":
+        dynamic_candidate_tickers = build_dynamic_candidate_pool()
+        download_tickers = list(
+            dict.fromkeys(
+                dynamic_candidate_tickers
+                + BENCHMARK_TICKERS
+                + COMMODITY_FUTURES_TICKERS
+            )
+        )
+
+    prices = download_price_data(download_tickers)
+    report_download_summary(
+        prices,
+        expected_tickers=download_tickers,
+        show_missing_tickers=UNIVERSE_MODE == "static",
+    )
+
+    dataset = build_dataset(prices, resource_tickers=dynamic_candidate_tickers)
     last_complete_month_end = get_last_complete_month_end()
     resource_monthly_prices = keep_complete_months(
         dataset["resource"]["monthly_prices"],
@@ -463,16 +373,17 @@ def main():
 
     print(f"\nUsing completed monthly data through {last_complete_month_end.date()}.")
 
-    dynamic_universe_result, eligibility_mask = prepare_universe_mode(
+    dynamic_universe_result, eligibility_table = prepare_universe_mode(
         universe_mode=UNIVERSE_MODE,
         resource_monthly_prices=resource_monthly_prices,
         resource_monthly_returns=resource_monthly_returns,
+        candidate_tickers=dynamic_candidate_tickers,
     )
 
     strategy_returns, strategy_metadata, _ = run_strategy_grid(
         resource_monthly_prices=resource_monthly_prices,
         resource_monthly_returns=resource_monthly_returns,
-        eligibility_mask=eligibility_mask,
+        eligibility_table=eligibility_table,
     )
 
     if not strategy_returns:
@@ -533,7 +444,7 @@ def main():
     walk_forward_metrics = calculate_performance_metrics(walk_forward_returns)
     resource_universe_returns = calculate_equal_weight_universe_returns(
         monthly_returns=resource_monthly_returns,
-        eligibility_mask=eligibility_mask,
+        eligibility_table=eligibility_table,
     )
 
     comparison_returns = strategy_returns_frame.copy()
@@ -577,6 +488,14 @@ def main():
         plt.show()
         plt.close("all")
 
+        if dynamic_universe_result is not None:
+            plot_annual_universe_table(
+                annual_universes=dynamic_universe_result.annual_universes,
+                show_plots=SHOW_PLOTS,
+            )
+            plt.show()
+            plt.close("all")
+
     print(
         "\nTrain/test split: "
         f"{train_index.min().date()} to {train_index.max().date()} in-sample, "
@@ -584,7 +503,7 @@ def main():
     )
     print_summary_table("Top strategies by in-sample Sharpe", top_in_sample.head(10))
     print_summary_table("Top strategies by full-sample Sharpe", top_full_sample.head(10))
-    print_table("In-sample winners checked out of sample", validation_summary.head(15))
+    print_table("In-sample winners checked out of sample", validation_summary.head(10))
 
     walk_forward_summary = pd.DataFrame([walk_forward_metrics], index=["Walk-forward"])
     print_table("Walk-forward selected-strategy performance", walk_forward_summary)
@@ -605,7 +524,7 @@ def main():
         "walk_forward_decisions": walk_forward_decisions,
         "resource_universe_returns": resource_universe_returns,
         "dynamic_universe_result": dynamic_universe_result,
-        "eligibility_mask": eligibility_mask,
+        "eligibility_table": eligibility_table,
     }
 
 

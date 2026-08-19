@@ -1,15 +1,15 @@
 """
 Data download and calendar aggregation.
 
-Yahoo Finance adjusted closes are the raw input for this project. This module
-keeps data access separate from strategy logic and produces consistent daily
+Yahoo Finance adjusted closes are the raw input. This file keeps data 
+access separate from strategy logic and produces consistent daily
 and month-end price/return tables for resources, benchmarks, and futures.
 """
 
 import pandas as pd
 import yfinance as yf
 
-from equities_list import (
+from universe import (
     NATURAL_RESOURCE_TICKERS,
     BENCHMARK_TICKERS,
     COMMODITY_FUTURES_TICKERS,
@@ -40,7 +40,7 @@ def download_price_data(tickers, start_date=START_DATE, end_date=END_DATE):
         start=start_date,
         end=end_date,
         auto_adjust=True,
-        progress=True,
+        progress=False,
         group_by="column",
         threads=True,
     )
@@ -59,15 +59,22 @@ def download_price_data(tickers, start_date=START_DATE, end_date=END_DATE):
     return close_prices
 
 
-def report_download_summary(prices):
+def report_download_summary(prices, expected_tickers=None, show_missing_tickers=True):
     """
     Print which tickers downloaded successfully and which were missing.
     """
+    if expected_tickers is None:
+        expected_tickers = ALL_TICKERS
+
     downloaded_tickers = list(prices.columns)
-    missing_tickers = sorted(set(ALL_TICKERS) - set(downloaded_tickers))
+    missing_tickers = sorted(set(expected_tickers) - set(downloaded_tickers))
 
     print(f"Downloaded tickers: {len(downloaded_tickers)}")
-    print(f"Missing tickers: {missing_tickers}")
+
+    if show_missing_tickers:
+        print(f"Missing tickers: {missing_tickers}")
+    else:
+        print(f"Missing tickers: {len(missing_tickers)}")
 
 
 def split_prices_by_universe(prices):
@@ -106,13 +113,17 @@ def calculate_returns(prices):
     return daily_returns, monthly_prices, monthly_returns
 
 
-def build_dataset(prices):
+def build_dataset(prices, resource_tickers=None):
     """
     Build daily/monthly price and return datasets for each ticker universe.
     """
     dataset = {}
+    datasets = DATASETS.copy()
 
-    for name, tickers in DATASETS.items():
+    if resource_tickers is not None:
+        datasets["resource"] = list(resource_tickers)
+
+    for name, tickers in datasets.items():
         available_tickers = [ticker for ticker in tickers if ticker in prices.columns]
         universe_prices = prices[available_tickers]
         daily_returns, monthly_prices, monthly_returns = calculate_returns(universe_prices)
