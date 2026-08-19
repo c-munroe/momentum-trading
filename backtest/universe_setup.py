@@ -4,7 +4,7 @@ Universe setup helpers for static and dynamic backtest modes.
 
 import pandas as pd
 
-from data_download import END_DATE, START_DATE
+from backtest.data_download import END_DATE, START_DATE
 from universe import (
     DEFAULT_START_YEAR,
     LIQUIDITY_LOOKBACK_DAYS,

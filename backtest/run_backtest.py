@@ -32,7 +32,7 @@ from backtest.validation import (
     split_train_test_index,
 )
 from backtest.universe_setup import build_dynamic_candidate_pool, prepare_universe_mode
-from data_download import (
+from backtest.data_download import (
     ALL_TICKERS,
     BENCHMARK_TICKERS,
     COMMODITY_FUTURES_TICKERS,
@@ -40,7 +40,7 @@ from data_download import (
     download_price_data,
     report_download_summary,
 )
-from momentum_strat import build_momentum_strategy
+from strats.builder import build_momentum_strategy
 from strats.momentum_signals import calculate_momentum_scores
 from strats.threshold_momentum import build_threshold_momentum_strategy
 
