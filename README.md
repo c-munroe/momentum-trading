@@ -165,14 +165,14 @@ For the historical market-cap attempt, the code calls Yahoo historical shares ou
 
 ## Current Limitations
 
-The static universe is hand-curated and survivorship-biased. The dynamic universe is broader, but still survivorship-biased because its candidate pool comes from companies listed in Yahoo's current Energy and Basic Materials screener rather than a point-in-time security master.
+The static universe is hand-curated and survivorship-biased. The dynamic universe is broader, but still has survivorship bias because it starts with companies listed in Yahoo’s Energy and Basic Materials sectors today, rather than including all of the companies that actually existed and traded during each historical year.
 
 The historical market-cap screen is limited by sparse Yahoo historical shares data, especially before roughly 2016. Earlier annual universes may exclude names because Yahoo lacks historical shares data, not necessarily because those companies were below $1 billion in market cap.
 
 The dynamic universe does not currently use point-in-time historical sector or subsector classifications. In the current run path, resource classification is handled by the current Yahoo sector screener, and `require_resource_classification` is set to `False`.
 
-The backtest does not model transaction costs, slippage, bid/ask spreads, market impact, borrow costs, financing costs, taxes, or turnover constraints. Long/short returns are calculated directly from signed monthly weights and asset returns. The code reports research results, but it does not save a formal results artifact or parameter manifest.
+The backtest does not model transaction costs, slippage, bid/ask spreads, market impact, borrow costs, financing costs, taxes, or turnover constraints. Long/short returns are calculated directly from signed monthly weights and asset returns. 
 
 ## Future Improvements
 
-Likely next steps include replacing Yahoo universe construction with point-in-time CRSP, WRDS, or another survivorship-bias-aware security master; improving historical market-cap coverage; adding point-in-time classifications; and adding transaction costs, slippage, short borrow costs, financing rates, and turnover reporting.
+Likely next steps include replacing Yahoo universe construction with CRSP data through WRDS using university access, or another historical database that includes the companies actually trading at each point in time; improving historical market-cap coverage; adding historical sector classifications; and incorporating transaction costs, slippage, short borrow costs, financing rates, and turnover reporting.
