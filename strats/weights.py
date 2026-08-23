@@ -88,3 +88,34 @@ def _cap_and_normalize_signed_weights(positions, max_weight=None, gross_exposure
     signed_positions = capped_absolute_weights * signs
 
     return signed_positions
+
+
+def calculate_inverse_volatility_weights(
+    monthly_returns,
+    selection,
+    volatility_lookback_months=6,
+    gross_exposure=1.0,
+    max_weight=None,
+):
+    """
+    Size selected long positions by inverse trailing realized volatility.
+
+    The trailing volatility is shifted one month so weights for month t only
+    use returns available before month t.
+    """
+    trailing_volatility = monthly_returns.shift(1).rolling(
+        volatility_lookback_months,
+    ).std()
+    valid_volatility = trailing_volatility.where(trailing_volatility > 0)
+    raw_weights = (1.0 / valid_volatility).where(selection)
+
+    positions = raw_weights.apply(
+        lambda row: _cap_and_normalize_nonnegative_weights(
+            weights=row,
+            max_weight=max_weight,
+            target_sum=gross_exposure,
+        ),
+        axis=1,
+    )
+
+    return positions.fillna(0.0)

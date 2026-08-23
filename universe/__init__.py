@@ -34,6 +34,13 @@ from universe.dynamic import (
 from universe.diagnostics import (
     print_annual_diagnostics,
 )
+from universe.crsp import (
+    build_crsp_dynamic_universe_data,
+)
+from universe.resource_classification import (
+    classify_resource_industry,
+    is_resource_industry,
+)
 from universe.static import (
     BENCHMARK_TICKERS,
     COMMODITY_FUTURES_TICKERS,
@@ -57,9 +64,11 @@ __all__ = [
     "YAHOO_RESOURCE_SECTORS",
     "YAHOO_SCREENER_PAGE_SIZE",
     "build_annual_universes",
+    "build_crsp_dynamic_universe_data",
     "build_yahoo_resource_candidate_pool",
     "calculate_trailing_dollar_volume",
     "calculate_historical_market_caps",
+    "classify_resource_industry",
     "download_historical_shares_outstanding",
     "download_price_volume_data",
     "filter_eligible_stocks",
@@ -68,6 +77,7 @@ __all__ = [
     "get_point_in_time_subsector",
     "get_reconstitution_date",
     "get_universe_for_date",
+    "is_resource_industry",
     "print_annual_diagnostics",
     "rank_universe",
 ]

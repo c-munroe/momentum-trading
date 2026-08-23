@@ -16,6 +16,7 @@ from strats.momentum_signals import (
 
 from strats.long_only import (
     build_equal_weight_positions,
+    build_inverse_volatility_weight_positions,
     build_scaled_weight_positions,
 )
 
@@ -63,6 +64,7 @@ def build_momentum_strategy(
     top_n=10,
     weighting="equal",
     max_weight=None,
+    weight_volatility_lookback_months=6,
     strategy_type="long_only",
     gross_exposure=1.0,
     eligibility_table=None,
@@ -92,7 +94,7 @@ def build_momentum_strategy(
     top_n : int
         Number of assets to select.
     weighting : str
-        "equal" or "scaled".
+        "equal", "scaled", or "inverse_vol".
     max_weight : float, optional
         Maximum absolute weight for one asset.
     strategy_type : str
@@ -179,8 +181,19 @@ def build_momentum_strategy(
                 max_weight=max_weight,
             )
 
+        elif weighting == "inverse_vol":
+            positions = build_inverse_volatility_weight_positions(
+                monthly_returns=monthly_returns,
+                selection=selection,
+                volatility_lookback_months=weight_volatility_lookback_months,
+                gross_exposure=gross_exposure,
+                max_weight=max_weight,
+            )
+
         else:
-            raise ValueError("weighting must be either 'equal' or 'scaled'.")
+            raise ValueError(
+                "long_only weighting must be 'equal', 'scaled', or 'inverse_vol'."
+            )
 
     elif strategy_type == "classic_long_short":
         long_selection = select_top_momentum_assets(

@@ -1,27 +1,5 @@
 """
-Build the annual point-in-time universe for the momentum backtest
-
-The process is:
-1. Start with a candidate ticker list
-2. Rebuild the universe each year using only data available at the time
-3. Optionally filter by resource subsector
-4. Check trailing average daily dollar volume
-5. Filter by historical market cap when that data is available
-6. Rank valid names by liquidity
-7. Keep all names above the normal liquidity threshold
-8. If needed, add below-threshold valid names until MIN_UNIVERSE_SIZE is reached
-
-Yahoo Finance gives us historical price, volume, and sparse historical shares
-outstanding. Market cap is calculated as historical price times historical
-shares outstanding. We do not use today's market cap or today's shares as a
-substitute for missing historical values
-
-The current dynamic backtest starts from today's Yahoo screener results, so
-survivorship bias is still present. Stocks that are missing from today's Yahoo
-candidate list cannot appear in earlier years
-
-Historical subsector classifications also need to be point-in-time to avoid
-look-ahead bias
+Generic annual point-in-time universe utilities for the momentum backtest.
 """
 
 from dataclasses import dataclass
@@ -75,15 +53,21 @@ class DynamicUniverseResult:
     """
     Container for annual universe output and diagnostics.
 
-    annual_universes maps each reconstitution year to the final selected tickers.
+    annual_universes maps each reconstitution year to the final selected security
+    IDs. CRSP dynamic mode uses PERMNOs here; ticker labels are display metadata.
     diagnostics has one summary row per year.
     """
 
-    annual_universes: dict[int, list[str]]
+    annual_universes: dict[int, list]
     diagnostics: pd.DataFrame
     candidate_source: str = ""
     candidate_count: int = 0
     shares_coverage_count: int = 0
+    display_annual_universes: dict[int, list[str]] | None = None
+    data_source: str = ""
+    data_start_date: pd.Timestamp | None = None
+    data_end_date: pd.Timestamp | None = None
+    duplicate_report: pd.DataFrame | None = None
 
 
 def get_reconstitution_date(year):
@@ -367,12 +351,8 @@ def build_annual_universes(
     subsector and that subsector must be included in allowed_resource_subsectors
 
     If require_resource_classification=False, subsector data is only used for
-    diagnostics. This is the current setup when candidate discovery already
-    uses Yahoo's current sector screener
-
-    Because the current candidate list comes from today's Yahoo screener,
-    survivorship bias is still present. The model can only choose from stocks
-    included in today's candidate list
+    diagnostics. This is useful when candidate discovery has already supplied a
+    tightly scoped resource universe.
     """
     candidate_tickers = list(dict.fromkeys(candidate_tickers))
     prices = prices.reindex(columns=[c for c in candidate_tickers if c in prices])

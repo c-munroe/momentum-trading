@@ -89,6 +89,24 @@ def calculate_sharpe_ratio(
     return sharpe_ratio if np.isfinite(sharpe_ratio) else None
 
 
+def calculate_calmar_ratio(annualized_return, max_drawdown):
+    """
+    Calculate Calmar as annualized return divided by absolute max drawdown.
+    """
+    if annualized_return is None or max_drawdown is None:
+        return None
+
+    if not np.isfinite(annualized_return) or not np.isfinite(max_drawdown):
+        return None
+
+    if np.isclose(max_drawdown, 0.0):
+        return np.nan
+
+    calmar_ratio = annualized_return / abs(max_drawdown)
+
+    return calmar_ratio if np.isfinite(calmar_ratio) else None
+
+
 def calculate_performance_metrics(returns):
     """
     Calculate the core metrics needed to rank and compare strategies
@@ -105,6 +123,7 @@ def calculate_performance_metrics(returns):
             "annualized_volatility": None,
             "sharpe_ratio": None,
             "max_drawdown": None,
+            "calmar_ratio": None,
             "win_rate": None,
             "final_value": None,
             "valid_for_chart": False,
@@ -129,6 +148,7 @@ def calculate_performance_metrics(returns):
         periods_per_year=PERIODS_PER_YEAR,
     )
     drawdowns = equity_curve / equity_curve.cummax() - 1
+    max_drawdown = drawdowns.min()
 
     return {
         "periods": len(returns),
@@ -136,10 +156,14 @@ def calculate_performance_metrics(returns):
         "annualized_return": annualized_return,
         "annualized_volatility": annualized_volatility,
         "sharpe_ratio": sharpe_ratio,
-        "max_drawdown": drawdowns.min(),
+        "max_drawdown": max_drawdown,
+        "calmar_ratio": calculate_calmar_ratio(
+            annualized_return=annualized_return,
+            max_drawdown=max_drawdown,
+        ),
         "win_rate": (returns > 0).mean(),
         "final_value": final_value,
-        "valid_for_chart": final_value > 0 and drawdowns.min() > -1,
+        "valid_for_chart": final_value > 0 and max_drawdown > -1,
     }
 
 

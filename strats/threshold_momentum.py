@@ -25,6 +25,22 @@ def apply_eligibility_table(raw_momentum_scores, eligibility_table):
     return raw_momentum_scores.where(aligned_table)
 
 
+def get_universe_available(raw_momentum_scores, eligibility_table):
+    """
+    Identify months where a dynamic universe actually exists.
+    """
+    if eligibility_table is None:
+        return None
+
+    aligned_table = eligibility_table.reindex(
+        index=raw_momentum_scores.index,
+        columns=raw_momentum_scores.columns,
+        fill_value=False,
+    )
+
+    return aligned_table.any(axis=1)
+
+
 def select_threshold_momentum_assets(raw_momentum_scores, threshold):
     """
     Select stocks with raw momentum strictly greater than the threshold.
@@ -62,6 +78,10 @@ def build_threshold_momentum_strategy(
     raw_momentum_scores should already include the project's lookback and
     skip-month timing. Months with no positions are cash months with 0% return.
     """
+    universe_available = get_universe_available(
+        raw_momentum_scores=raw_momentum_scores,
+        eligibility_table=eligibility_table,
+    )
     raw_momentum_scores = apply_eligibility_table(
         raw_momentum_scores=raw_momentum_scores,
         eligibility_table=eligibility_table,
@@ -81,5 +101,8 @@ def build_threshold_momentum_strategy(
 
     active_exposure = positions.abs().sum(axis=1)
     portfolio_returns = portfolio_returns.where(active_exposure > 0, 0.0)
+
+    if universe_available is not None:
+        portfolio_returns = portfolio_returns.where(universe_available)
 
     return portfolio_returns, positions, selection
