@@ -34,11 +34,7 @@ Volatility-adjusted momentum changes the ranking signal. It asks whether a stock
 
 For stock $i$ at month $t$, raw momentum is:
 
-$$
-M_{i,t}
-=
-\frac{P_{i,t-s}}{P_{i,t-L}} - 1
-$$
+$$M_{i,t} = \frac{P_{i,t-s}}{P_{i,t-L}} - 1$$
 
 where:
 
@@ -51,11 +47,7 @@ For example, `12-1` momentum compares the signal price from one month ago with t
 
 Volatility-adjusted momentum divides that raw momentum by trailing realized volatility:
 
-$$
-S_{i,t}
-=
-\frac{M_{i,t}}{\sigma_{i,t}}
-$$
+$$S_{i,t} = \frac{M_{i,t}}{\sigma_{i,t}}$$
 
 where $\sigma_{i,t}$ is calculated from trailing monthly returns available before the portfolio month.
 
@@ -69,20 +61,11 @@ Inverse-volatility weighting is a portfolio sizing rule applied after the stocks
 
 For each selected stock, trailing realized volatility is calculated using only prior monthly returns. The raw inverse-volatility weight is:
 
-$$
-\tilde{w}_{i,t}
-=
-\frac{1}{\sigma_{i,t}}
-$$
+$$\tilde{w}_{i,t} = \frac{1}{\sigma_{i,t}}$$
 
 The raw weights are then normalized:
 
-$$
-w_{i,t}
-=
-\frac{\tilde{w}_{i,t}}
-{\sum_{j \in S_t} \tilde{w}_{j,t}}
-$$
+$$w_{i,t} = \frac{\tilde{w}_{i,t}}{\sum_{j \in S_t}\tilde{w}_{j,t}}$$
 
 where $S_t$ is the selected set of stocks.
 
@@ -205,12 +188,7 @@ At each annual walk-forward rebalance, the code ranks strategies using only the 
 
 The Top-3 and Top-5 ensembles select the highest-training-Sharpe strategies and combine their next-12-month returns using equal allocation:
 
-$$
-R^{ensemble}_t
-=
-\frac{1}{N}
-\sum_{k=1}^{N} R^{strategy_k}_t
-$$
+$$R_t^{\mathrm{ensemble}} = \frac{1}{N}\sum_{k=1}^{N}R_{k,t}^{\mathrm{strategy}}$$
 
 where $N$ is 3 or 5.
 
@@ -298,19 +276,19 @@ The results support the existence of useful momentum stock-selection effects wit
 
 ## Running the Backtest
 
-Run the main research grid with:
+Dynamic CRSP mode is the default and can be run directly:
 
 ```bash
 python -m backtest.run_backtest
 ```
 
-Universe mode defaults to static and can be set with `UNIVERSE_MODE`:
+Static mode can be run with:
 
 ```bash
-UNIVERSE_MODE=dynamic python -m backtest.run_backtest
+UNIVERSE_MODE=static python -m backtest.run_backtest
 ```
 
-Set it to `"static"` for the hand-curated ticker list or `"dynamic"` to build annual CRSP-based eligibility tables. With `SHOW_PLOTS=1`, the script first displays the fixed-strategy held-out OOS performance chart, then Sharpe diagnostics, then the separate walk-forward robustness chart and dynamic-universe viewer.
+Set `UNIVERSE_MODE` to `"static"` for the hand-curated ticker list or `"dynamic"` to build annual CRSP-based eligibility tables. With `SHOW_PLOTS=1`, the script first displays the fixed-strategy held-out OOS performance chart, then Sharpe diagnostics, then the separate walk-forward robustness chart and dynamic-universe viewer.
 
 ## Data Sources
 
