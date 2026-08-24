@@ -154,6 +154,12 @@ In current dynamic CRSP mode, the fixed strategy selected using only the in-samp
 voladj6_12-1 | long_only | inverse_vol | top20
 ```
 
+![Held-out OOS performance](figures/oos_70_30_growth.png)
+
+**Held-Out Out-of-Sample Performance (2018-07-31 to 2025-12-31).** The fixed strategy was selected using in-sample Sharpe over 2001-01-31 to 2018-06-30 and then evaluated on the held-out period without re-selection.
+
+Headline primary OOS result: selected strategy `voladj6_12-1 | long_only | inverse_vol | top20`; annualized return 20.41%; Sharpe ratio 0.958; final value of $1 approximately $4.03.
+
 The held-out OOS period is `2018-07-31` through `2025-12-31`. This fixed specification produced approximately:
 
 - annualized return: 20.41%
