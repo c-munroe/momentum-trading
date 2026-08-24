@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository tests momentum strategies across natural-resource equities. Static mode uses monthly Yahoo Finance data for the hand-curated ticker list. Dynamic mode uses CRSP historical stock data for PERMNO-based annual universes, returns, market cap, liquidity, ticker changes, and delisted companies. The equity universe is resource-linked: energy, metals, mining, chemicals, fertilizers, forestry, construction materials, and uranium.
+This repository tests cross-sectional momentum strategies across natural-resource equities, including energy, metals and mining, chemicals, forestry, and construction materials. The initial static approach uses monthly Yahoo Finance data and a hand-curated ticker universe. The primary dynamic approach reconstructs the historical investable universe using CRSP data, with point-in-time market capitalization, liquidity, industry classification, ticker changes, and delisted securities. The project compares multiple momentum signals and portfolio constructions using held-out out-of-sample testing and walk-forward robustness analysis.
 
 ## Research Question
 
