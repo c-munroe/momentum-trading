@@ -32,32 +32,32 @@ The project also implements simple, exponential, and linearly weighted moving-av
 
 Volatility-adjusted momentum changes the ranking signal. It asks whether a stock's momentum was strong relative to the volatility it took to produce that momentum.
 
-For stock \(i\) at month \(t\), raw momentum is:
+For stock $i$ at month $t$, raw momentum is:
 
-\[
+$$
 M_{i,t}
 =
 \frac{P_{i,t-s}}{P_{i,t-L}} - 1
-\]
+$$
 
 where:
 
-- \(L\) is the full lookback window
-- \(s\) is the skip-month offset
-- \(P_{i,t-s}\) is the more recent signal price
-- \(P_{i,t-L}\) is the older starting signal price
+- $L$ is the full lookback window
+- $s$ is the skip-month offset
+- $P_{i,t-s}$ is the more recent signal price
+- $P_{i,t-L}$ is the older starting signal price
 
 For example, `12-1` momentum compares the signal price from one month ago with the signal price from twelve months ago.
 
 Volatility-adjusted momentum divides that raw momentum by trailing realized volatility:
 
-\[
+$$
 S_{i,t}
 =
 \frac{M_{i,t}}{\sigma_{i,t}}
-\]
+$$
 
-where \(\sigma_{i,t}\) is calculated from trailing monthly returns available before the portfolio month.
+where $\sigma_{i,t}$ is calculated from trailing monthly returns available before the portfolio month.
 
 In plain English, this rewards stocks that produced strong momentum with a smoother return path. Two stocks may both be up 30%, but the one that got there with lower volatility receives the higher volatility-adjusted score.
 
@@ -69,22 +69,22 @@ Inverse-volatility weighting is a portfolio sizing rule applied after the stocks
 
 For each selected stock, trailing realized volatility is calculated using only prior monthly returns. The raw inverse-volatility weight is:
 
-\[
+$$
 \tilde{w}_{i,t}
 =
 \frac{1}{\sigma_{i,t}}
-\]
+$$
 
 The raw weights are then normalized:
 
-\[
+$$
 w_{i,t}
 =
 \frac{\tilde{w}_{i,t}}
 {\sum_{j \in S_t} \tilde{w}_{j,t}}
-\]
+$$
 
-where \(S_t\) is the selected set of stocks.
+where $S_t$ is the selected set of stocks.
 
 This gives larger weights to lower-volatility selected stocks and smaller weights to higher-volatility selected stocks, while keeping total gross exposure fixed.
 
@@ -205,14 +205,14 @@ At each annual walk-forward rebalance, the code ranks strategies using only the 
 
 The Top-3 and Top-5 ensembles select the highest-training-Sharpe strategies and combine their next-12-month returns using equal allocation:
 
-\[
+$$
 R^{ensemble}_t
 =
 \frac{1}{N}
 \sum_{k=1}^{N} R^{strategy_k}_t
-\]
+$$
 
-where \(N\) is 3 or 5.
+where $N$ is 3 or 5.
 
 The diversified Top-5 ensemble adds a simple diversification rule. Strategies are grouped by:
 
