@@ -1,5 +1,18 @@
 # Natural Resource Momentum Backtest
 
+## Table of Contents
+
+- [Strategy Framework](#strategy-framework)
+- [Key Strategy Concepts](#key-strategy-concepts)
+- [Universe Construction](#universe-construction)
+- [Backtest Methodology](#backtest-methodology)
+- [Validation Framework](#validation-framework)
+- [Current Findings](#current-findings)
+- [Project Structure](#project-structure)
+- [Current Limitations](#current-limitations)
+- [Future Improvements](#future-improvements)
+- [Closing Thoughts](#closing-thoughts)
+
 ## Overview
 
 This repository tests cross-sectional momentum strategies across natural-resource equities, including energy, metals and mining, chemicals, forestry, and construction materials. The initial static approach uses monthly Yahoo Finance data and a hand-curated ticker universe. The primary dynamic approach reconstructs the historical investable universe using CRSP data, with point-in-time market capitalization, liquidity, industry classification, ticker changes, and delisted securities. The project compares multiple momentum signals and portfolio constructions using held-out out-of-sample testing and walk-forward robustness analysis.
