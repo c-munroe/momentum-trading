@@ -60,7 +60,7 @@ def build_crsp_monthly_eligibility_table(monthly_returns, annual_universes):
         available_permnos = [permno for permno in annual_permnos if permno in table]
         table.loc[date, available_permnos] = True
 
-    return table & monthly_returns.notna()
+    return table
 
 
 def build_crsp_dynamic_universe_data(data_dir=CRSP_DATA_DIR):

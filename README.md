@@ -158,15 +158,15 @@ voladj6_12-1 | long_only | inverse_vol | top20
 
 **Held-Out Out-of-Sample Performance (2018-07-31 to 2025-12-31).** The fixed strategy was selected using in-sample Sharpe over 2001-01-31 to 2018-06-30 and then evaluated on the held-out period without re-selection.
 
-Headline primary OOS result: selected strategy `voladj6_12-1 | long_only | inverse_vol | top20`; annualized return 20.41%; Sharpe ratio 0.958; final value of $1 approximately $4.03.
+Headline primary OOS result: selected strategy `voladj6_12-1 | long_only | inverse_vol | top20`; annualized return 19.36%; Sharpe ratio 0.960; final value of $1 approximately $3.77.
 
 The held-out OOS period is `2018-07-31` through `2025-12-31`. This fixed specification produced approximately:
 
-- annualized return: 20.41%
-- annualized volatility: 21.96%
-- Sharpe ratio: 0.958
-- maximum drawdown: -30.16%
-- Calmar ratio: 0.677
+- annualized return: 19.36%
+- annualized volatility: 20.76%
+- Sharpe ratio: 0.960
+- maximum drawdown: -30.01%
+- Calmar ratio: 0.645
 
 Over the identical OOS dates, SPY produced approximately:
 
