@@ -333,3 +333,7 @@ The backtest does not model transaction costs, slippage, bid/ask spreads, market
 ## Future Improvements
 
 Likely next steps include adding transaction costs, slippage, short borrow costs, financing rates, turnover reporting, and more explicit CRSP extract metadata/version tracking.
+
+## Closing Thoughts
+
+A natural next question is whether I would actually allocate capital to this strategy rather than simply holding the S&P 500. Despite the strong held-out results, I would want to address the current limitations, especially transaction costs, slippage, turnover, and implementation realism, before treating the backtest as investable evidence. Given the long historical success and simplicity of the S&P 500 or another proven strategy, I would also want to live-test the strategy for at least a year before considering deploying real capital, addresses issues as they arise. One step toward building confidence would be continuing to refine signal generation to better identify the market environments in which specific strategies tend to work best.
