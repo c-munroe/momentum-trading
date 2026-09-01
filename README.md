@@ -2,12 +2,14 @@
 
 ## Table of Contents
 
+- [Key Findings](#key-findings)
 - [Strategy Framework](#strategy-framework)
 - [Key Strategy Concepts](#key-strategy-concepts)
 - [Universe Construction](#universe-construction)
 - [Backtest Methodology](#backtest-methodology)
 - [Validation Framework](#validation-framework)
-- [Current Findings](#current-findings)
+- [Benchmarks](#benchmarks)
+- [Performance Metrics](#performance-metrics)
 - [Project Structure](#project-structure)
 - [Current Limitations](#current-limitations)
 - [Future Improvements](#future-improvements)
@@ -24,6 +26,16 @@ The core question is whether momentum signals can identify persistent relative s
 ## Initial Hypothesis
 
 I believed momentum would be especially strong in natural-resource equities because industries like oil, gas, and mining are heavily influenced by news, geopolitical events, commodity-price moves, and investor sentiment. I expected those forces to create large waves and persistent trends rather than isolated price movements. Because momentum strategies try to capture those trends, I thought natural-resource equities would be a particularly strong place to test whether momentum actually works.
+
+## Key Findings
+
+The strongest fixed specification selected using the initial training sample was 12-1 volatility-adjusted momentum with inverse-volatility weighting. It generalized strongly over the held-out `2018-07-31` through `2025-12-31` sample, outperforming the resource equal-weight benchmark and SPY on annualized return and slightly outperforming SPY on Sharpe.
+
+The selected strategy produced a 19.36% annualized return with a 0.960 Sharpe ratio over the held-out period, compared with a 14.85% annualized return and 0.914 Sharpe ratio for SPY.
+
+However, a separate rolling walk-forward analysis showed that repeatedly selecting the single best historical specification was considerably less stable. Ensembles of several highly ranked strategies reduced this model-selection risk, but the walk-forward process still underperformed SPY over the longer `2011-01-31` through `2025-12-31` period.
+
+The results support the existence of useful momentum stock-selection effects within natural-resource equities, while also showing that dynamically identifying the best specification through time is difficult. The full-sample winner is descriptive only and should not be treated as unbiased out-of-sample evidence.
 
 ## Strategy Framework
 
@@ -143,7 +155,7 @@ Dynamic-mode stock returns use CRSP monthly `MthRet`. Signal price inputs use a 
 
 ## Backtest Methodology
 
-Static mode uses Yahoo Finance adjusted close data starting from `2000-01-01`. Prices are resampled to month-end, and monthly returns are calculated from month-end adjusted prices. The run script excludes the current partial month.
+Static mode uses Yahoo Finance adjusted close data starting from `2000-01-01`. Prices are resampled to month-end, and monthly returns are calculated from month-end adjusted prices. The main workflow excludes the current partial month.
 
 Dynamic mode uses CRSP monthly equity data through the last complete available CRSP month. The current supplied CRSP files run through `2025-12-31`, so dynamic stock-strategy results stop there rather than mixing in 2026 Yahoo equity data.
 
@@ -157,7 +169,7 @@ Validation logic is implemented in `backtest/validation.py`. The project uses tw
 
 ### Primary: 70/30 Fixed-Strategy Out-of-Sample Test
 
-The primary validation test asks: if a strategy specification is selected using only the first 70% of valid strategy history, does that exact fixed specification continue to perform in the untouched final 30%?
+The primary validation test asks: if a strategy specification is selected using only the first 70% of valid strategy history, does that exact fixed specification continue to perform in the held-out final 30%?
 
 The first 70% of valid monthly strategy-return history is used as the in-sample period. Strategies need at least 36 valid monthly returns before ranking. The best specification is selected using in-sample Sharpe ratio, then frozen. The final 30% is held out for evaluation, with no re-selection during that out-of-sample period.
 
@@ -189,7 +201,7 @@ Over the identical OOS dates, SPY produced approximately:
 - maximum drawdown: -23.93%
 - Calmar ratio: 0.620
 
-This 70/30 fixed-strategy test is the primary test of whether the identified momentum specification generalized to unseen data.
+This 70/30 fixed-strategy test is the primary test of whether the identified momentum specification generalized to held-out data.
 
 ### Secondary: Walk-Forward Robustness Analysis
 
@@ -248,14 +260,6 @@ The current metrics include:
 - information ratio to selected benchmarks
 
 Annualized return is calculated from compounded monthly returns. Sharpe uses a zero risk-free rate. Calmar is annualized return divided by the absolute value of maximum drawdown.
-
-## Current Findings
-
-The strongest fixed specification selected using the initial training sample was 12-1 volatility-adjusted momentum with inverse-volatility weighting. It generalized strongly over the held-out `2018-07-31` through `2025-12-31` sample, outperforming the resource equal-weight benchmark and SPY on annualized return and slightly outperforming SPY on Sharpe.
-
-However, a separate rolling walk-forward analysis showed that repeatedly selecting the single best historical specification was considerably less stable. Ensembles of several highly ranked strategies reduced this model-selection risk, but the walk-forward process still underperformed SPY over the longer `2011-01-31` through `2025-12-31` period.
-
-The results support the existence of useful momentum stock-selection effects within natural-resource equities, while also showing that dynamically identifying the best specification through time is difficult. The full-sample winner is descriptive only and should not be treated as unbiased out-of-sample evidence.
 
 ## Project Structure
 
@@ -341,7 +345,7 @@ The static universe is hand-curated and survivorship-biased.
 
 Dynamic mode depends on the local CRSP extract. The supplied daily file is a broad historical resource-candidate pool, so a security absent from that daily extract cannot pass the 60-day liquidity screen even if it appears in the full monthly CRSP file.
 
-The backtest does not model transaction costs, slippage, bid/ask spreads, market impact, borrow costs, financing costs, taxes, or turnover constraints. Long/short returns are calculated directly from signed monthly weights and asset returns. 
+The backtest does not model transaction costs, slippage, bid/ask spreads, market impact, borrow costs, financing costs, taxes, or turnover constraints. Long/short returns are calculated directly from signed monthly weights and asset returns.
 
 ## Future Improvements
 
@@ -349,4 +353,8 @@ Likely next steps include adding transaction costs, slippage, short borrow costs
 
 ## Closing Thoughts
 
-A natural next question is whether I would actually allocate capital to this strategy rather than simply holding the S&P 500. Despite the strong held-out results, I would want to address the current limitations, especially transaction costs, slippage, turnover, and implementation realism, before treating the backtest as investable evidence. Given the long historical success and simplicity of the S&P 500 or another proven strategy, I would also want to live-test the strategy for at least a year before considering deploying real capital, addresses issues as they arise. One step toward building confidence would be continuing to refine signal generation to better identify the market environments in which specific strategies tend to work best.
+A natural next question is whether I would actually allocate capital to this strategy rather than simply holding the S&P 500. Despite the strong held-out results, I would want to address the current limitations, especially transaction costs, slippage, turnover, and implementation realism, before treating the backtest as investable evidence.
+
+Given the long historical success and simplicity of the S&P 500 or another proven strategy, I would also want to live-test the strategy for at least a year before considering deploying real capital, while addressing issues as they arise.
+
+One step toward building confidence would be continuing to refine signal generation to better identify the market environments in which specific strategies tend to work best.
