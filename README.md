@@ -34,16 +34,16 @@ Volatility-adjusted momentum changes the ranking signal. It asks whether a stock
 
 For stock $i$ at month $t$, raw momentum is:
 
-$$M_{i,t} = \frac{P_{i,t-s}}{P_{i,t-L}} - 1$$
+$$M_{i,t} = \frac{P_{i,t-s} - P_{i,t-L}}{P_{i,t-L}}$$
 
 where:
 
 - $L$ is the full lookback window
 - $s$ is the skip-month offset
-- $P_{i,t-s}$ is the more recent signal price
-- $P_{i,t-L}$ is the older starting signal price
+- $P_{i,t-s}$ is the more recent price used in the momentum calculation
+- $P_{i,t-L}$ is the starting price used in the momentum calculation
 
-For example, `12-1` momentum compares the signal price from one month ago with the signal price from twelve months ago.
+For example, `12-1` momentum compares the price from one month ago with the price from twelve months ago.
 
 Volatility-adjusted momentum divides that raw momentum by trailing realized volatility:
 
@@ -248,16 +248,17 @@ The results support the existence of useful momentum stock-selection effects wit
 
 ```text
 .
+├── main.py
 ├── backtest/
 │   ├── data_download.py
 │   ├── config.py
 │   ├── metrics.py
 │   ├── reporting.py
-│   ├── run_backtest.py
 │   ├── universe_setup.py
 │   └── validation.py
 ├── strats/
 │   ├── builder.py
+│   ├── grid.py
 │   ├── long_only.py
 │   ├── long_short.py
 │   ├── long_short_abs.py
@@ -278,23 +279,35 @@ The results support the existence of useful momentum stock-selection effects wit
     └── static.py
 ```
 
-`backtest/` contains configuration, data download, metrics, reporting, validation, and the main run script. `strats/` contains signals, selection, weighting, and return calculation. `universe/` contains the static ticker list, CRSP loaders, resource classification, and dynamic annual universe logic.
+`main.py` is the project-level entry point where universe construction, data preparation, strategy generation, portfolio construction, backtesting, validation, benchmarking, reporting, and plotting are orchestrated together. `backtest/` contains configuration, data download, metrics, reporting, validation, and backtesting infrastructure. `strats/` contains signals, strategy-grid construction, selection, weighting, and return calculation. `universe/` contains the static ticker list, CRSP loaders, resource classification, and dynamic annual universe logic.
 
 ## Running the Backtest
 
 Dynamic CRSP mode is the default and can be run directly:
 
 ```bash
-python -m backtest.run_backtest
+python main.py
 ```
 
 Static mode can be run with:
 
 ```bash
-UNIVERSE_MODE=static python -m backtest.run_backtest
+UNIVERSE_MODE=static python main.py
 ```
 
-Set `UNIVERSE_MODE` to `"static"` for the hand-curated ticker list or `"dynamic"` to build annual CRSP-based eligibility tables. With `SHOW_PLOTS=1`, the script first displays the fixed-strategy held-out OOS performance chart, then Sharpe diagnostics, then the separate walk-forward robustness chart and dynamic-universe viewer.
+No-plots mode can be run with:
+
+```bash
+SHOW_PLOTS=0 python main.py
+```
+
+Static no-plots mode can be run with:
+
+```bash
+UNIVERSE_MODE=static SHOW_PLOTS=0 python main.py
+```
+
+Set `UNIVERSE_MODE` to `"static"` for the hand-curated ticker list or `"dynamic"` to build annual CRSP-based eligibility tables. With `SHOW_PLOTS=1`, `main.py` first displays the fixed-strategy held-out OOS performance chart, then Sharpe diagnostics, then the separate walk-forward robustness chart and dynamic-universe viewer.
 
 ## Data Sources
 
