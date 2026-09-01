@@ -28,6 +28,27 @@ DATASETS = {
 }
 
 
+def get_last_complete_month_end(today=None):
+    """
+    Return the most recent completed month-end.
+
+    Yahoo data for the current partial month is resampled to that month-end label.
+    Historical validation should not treat an unfinished month as complete.
+    """
+    today = pd.Timestamp.today().normalize() if today is None else pd.Timestamp(today)
+    today = today.normalize()
+    current_month_end = today.to_period("M").to_timestamp("M")
+
+    if today <= current_month_end:
+        return (today.to_period("M") - 1).to_timestamp("M")
+
+    return current_month_end
+
+
+def keep_complete_months(monthly_frame, last_complete_month_end):
+    return monthly_frame.loc[monthly_frame.index <= last_complete_month_end]
+
+
 def download_price_data(tickers, start_date=START_DATE, end_date=END_DATE):
     """
     Download adjusted close prices from Yahoo Finance.
