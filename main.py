@@ -54,7 +54,7 @@ from backtest.validation import (
     rank_results,
     split_train_test_index,
 )
-from strats.grid import run_strategy_grid
+from backtest.strategy_grid import run_strategy_grid
 
 
 SHOW_PLOTS = os.getenv("SHOW_PLOTS", "1").lower() not in {"0", "false", "no"}

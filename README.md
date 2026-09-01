@@ -254,11 +254,11 @@ The results support the existence of useful momentum stock-selection effects wit
 │   ├── config.py
 │   ├── metrics.py
 │   ├── reporting.py
+│   ├── strategy_grid.py
 │   ├── universe_setup.py
 │   └── validation.py
 ├── strats/
 │   ├── builder.py
-│   ├── grid.py
 │   ├── long_only.py
 │   ├── long_short.py
 │   ├── long_short_abs.py
@@ -279,7 +279,7 @@ The results support the existence of useful momentum stock-selection effects wit
     └── static.py
 ```
 
-`main.py` is the project-level entry point where universe construction, data preparation, strategy generation, portfolio construction, backtesting, validation, benchmarking, reporting, and plotting are orchestrated together. `backtest/` contains configuration, data download, metrics, reporting, validation, and backtesting infrastructure. `strats/` contains signals, strategy-grid construction, selection, weighting, and return calculation. `universe/` contains the static ticker list, CRSP loaders, resource classification, and dynamic annual universe logic.
+`main.py` is the project-level entry point where universe construction, data preparation, strategy generation, portfolio construction, backtesting, validation, benchmarking, reporting, and plotting are orchestrated together. `backtest/` contains configuration, data download, strategy-grid construction, metrics, reporting, validation, and backtesting/research infrastructure. `strats/` contains the actual signal, strategy, weighting, and portfolio logic. `universe/` contains the static ticker list, CRSP loaders, resource classification, and dynamic annual universe logic.
 
 ## Running the Backtest
 
